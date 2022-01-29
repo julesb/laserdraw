@@ -4,31 +4,27 @@ import netP5.*;
 OscP5 oscP5;
 NetAddress network;
 
-int NUMPOINTS = 300;
+//int NUMPOINTS = 300;
 
-int[] pointsX = new int[NUMPOINTS];
-int[] pointsY = new int[NUMPOINTS];
-int[] pointIntensity = new int[NUMPOINTS];
+//int[] pointsX = new int[NUMPOINTS];
+//int[] pointsY = new int[NUMPOINTS];
+//int[] pointIntensity = new int[NUMPOINTS];
+
+static final int LASER_FRAME_RATE = 60;
+static final int SAMPLE_RATE = 44100;
+static final int SAMPLES_PER_FRAME = SAMPLE_RATE / LASER_FRAME_RATE; 
 
 ArrayList<ArrayList> paths = new ArrayList();
 int currentPathIdx = -1;
 
-int pointidx = 0;
+float[] pointsX;
+float[] pointsY;  
+
+
+//int pointidx = 0;
 
 
 
-int getpointcount(ArrayList paths) {
-  int count = 0;
-  for (int i = 0; i < paths.size(); i++) {
-    count += ((ArrayList)paths.get(i)).size();
-  }
-  return count;
-}
-
-float cosinelerp(float y1,float y2, float mu) {
-   float mu2 = (1.0-cos(mu*PI))* 0.5;
-   return(y1*(1.0-mu2)+y2*mu2);
-}
 
 void setup() {
   size(1024,1024);
@@ -87,8 +83,8 @@ void mousePressed() {
 void mouseReleased() {
   int numpoints = getpointcount(paths);
     println("points:" + numpoints);
-    float[] pointsX = new float[numpoints];
-    float[] pointsY = new float[numpoints];  
+    pointsX = new float[numpoints];
+    pointsY = new float[numpoints];  
 
   
     int idx = 0;
@@ -118,4 +114,18 @@ void oscEvent(OscMessage theOscMessage) {
   print("### received an osc message.");
   print(" addrpattern: "+theOscMessage.addrPattern());
   println(" typetag: "+theOscMessage.typetag());
+}
+
+
+int getpointcount(ArrayList paths) {
+  int count = 0;
+  for (int i = 0; i < paths.size(); i++) {
+    count += ((ArrayList)paths.get(i)).size();
+  }
+  return count;
+}
+
+float cosinelerp(float y1,float y2, float mu) {
+   float mu2 = (1.0-cos(mu*PI))* 0.5;
+   return(y1*(1.0-mu2)+y2*mu2);
 }
