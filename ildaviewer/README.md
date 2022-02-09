@@ -2,7 +2,8 @@
 
 - ildaviewer.pde: A simple ILDA file player in Processing.
 
-- IldaFile.pde: A Java library for loading "format 0" ILDA files. No dependence on Processing. Only supports one format: "Format 0 – 3D Coordinates with Indexed Color".
+- IldaFile.pde: A Java library for loading ILDA files. No dependence on Processing.
+    Supported formats: "Format 0 – 3D Coordinates with Indexed Color", "Format 5 – 2D Coordinates with True Color".
 
 ## Screenshots
 ![ILDA Test Pattern](testpattern.png)

@@ -9,12 +9,12 @@ IldaFrame currentFrame;
 int currentFrameIdx = 0;
 
 
-String ildaFilename = "049.ild";
+String ildaFilename = "ildatest.ild";
 static final boolean DRAW_BLANK_LINES = true;
 
 void setup() {
   size(1200,1200);
-  frameRate(30);
+  frameRate(25);
   oscP5 = new OscP5(this,12000);
   network = new NetAddress("127.0.0.1",12000);
   
@@ -60,9 +60,6 @@ void drawIldaFrame(IldaFrame frame) {
     float y1 = (float)p1.y / Short.MAX_VALUE * (height/2) * -1;
     float x2 = (float)p2.x / Short.MAX_VALUE * (width/2);
     float y2 = (float)p2.y / Short.MAX_VALUE * (height/2) * -1;
-    int colorIdx = p1.colorIdx;
-    int[] rgb = IldaUtil.DEFAULT_PALETTE[colorIdx];
-    rgb = rgbIntensity(rgb, 0.25);
     
     noFill();
     if(p1.blank) {
@@ -75,6 +72,7 @@ void drawIldaFrame(IldaFrame frame) {
       }
     }
     else {
+      int[] rgb = rgbIntensity(p1.rgb, 0.25);
       strokeWeight(6);
       stroke(rgb[0], rgb[1], rgb[2]);
     }

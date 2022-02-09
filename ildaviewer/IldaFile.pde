@@ -144,18 +144,22 @@ public class IldaFrame {
     
     for (int i=dataStartIdx; i < dataStartIdx+datalen; i += recsize) {
       byte[] recBytes = Arrays.copyOfRange(bytes, i, i+recsize);
+      short x,y,z;
+      int status, st_blank, st_last, colIdx;
+      int[] rgb;
+      IldaPoint p;
 
       switch(this.header.formatCode) {
          case IldaHeader.ILDA_3D_INDEXED:
-           short x = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 0, 2));
-           short y = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 2, 4));
-           short z = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 4, 6));
-           int status = recBytes[6];
-           int colIdx = recBytes[7];
-           int st_last   = (status & (1 << 7)) >> 7;
-           int st_blank  = (status & (1 << 6)) >> 6;
-           int[] rgb = IldaUtil.DEFAULT_PALETTE[colIdx];
-           IldaPoint p = new IldaPoint(x, y, z, colIdx, (st_blank == 1), (st_last == 1));
+           x = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 0, 2));
+           y = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 2, 4));
+           z = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 4, 6));
+           status = recBytes[6];
+           colIdx = recBytes[7];
+           st_last   = (status & (1 << 7)) >> 7;
+           st_blank  = (status & (1 << 6)) >> 6;
+           rgb = null; //IldaUtil.DEFAULT_PALETTE[colIdx];
+           p = new IldaPoint(x, y, z, colIdx, rgb, (st_blank == 1), (st_last == 1));
            this.points.add(p);
            //println(p.toString());
            break;
@@ -173,7 +177,22 @@ public class IldaFrame {
            break;
          
          case IldaHeader.ILDA_2D_RGB:
-           println("NOT IMPLEMENTED: ILDA_2D_RGB");
+           x = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 0, 2));
+           y = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 2, 4));
+           z = 0;
+           status = recBytes[4];
+           st_last   = (status & (1 << 7)) >> 7;
+           st_blank  = (status & (1 << 6)) >> 6;
+           int b = recBytes[5];
+           int g = recBytes[6];
+           int r = recBytes[7];
+           rgb = new int[3];
+           rgb[0] = r;
+           rgb[1] = g;
+           rgb[2] = b;
+           colIdx = -1;
+           p = new IldaPoint(x, y, z, colIdx, rgb, (st_blank == 1), (st_last == 1));
+           this.points.add(p);
            break;
       }
     }
@@ -188,16 +207,24 @@ public class IldaPoint {
   short x;
   short y;
   short z;
-  int[] rgb;
+  int[] rgb = {0,0,0};
   int colorIdx;
   boolean blank;
   boolean last;
   
-  public IldaPoint(short x, short y, short z, int colorIdx, boolean blank, boolean last) {
+  public IldaPoint(short x, short y, short z, int colorIdx, int[] rgb, boolean blank, boolean last) {
     this.x = x;
     this.y = y;
     this.z = z;
-    //this.rgb = rgb;
+    if (rgb != null && rgb.length == 3) {
+      this.rgb = rgb;
+    }
+    else {
+      if (colorIdx >= 0 && colorIdx < 64) {
+        this.rgb = IldaUtil.DEFAULT_PALETTE[colorIdx];
+      }
+    }
+
     this.colorIdx = colorIdx;
     this.blank = blank;
     this.last = last;
