@@ -10,32 +10,49 @@ import java.util.Arrays;
 
 public class IldaFile {
   String filename;
+  String name;
   byte[] bytes;
   ArrayList<IldaFrame> frames = new ArrayList();
   int frameCount = 0;
 
-  public IldaFile(String filename) {
+  public IldaFile(String filename, String name) {
     this.filename = filename;
     this.bytes = loadFile();
     int frameOffset = 0;
     IldaFrame frame;
     do {
       frame = new IldaFrame(frameOffset, this.bytes);
-      frames.add(frame);
-      frameOffset += frame.byteCount;
+      if (frame.header.numRecords == 0) {
+        println(name + ": ##### EOF\n");
+        break;
+      }
+      else {
+        frames.add(frame);
+        println(name + ": " + frame.toString());
+        frameOffset += frame.byteCount;
+      }
     } while (frame.header.numRecords > 0 && frameOffset < this.bytes.length);
-    this.frameCount = frames.size() - 1; // minus one for the final empty frame
+
+    if (frame.header.numRecords != 0) {
+      println(name + ": NO EOF HEADER");
+    }
+
+    this.frameCount = frames.size();
   }
 
   byte[] loadFile() {
     byte[] bytes = {};
     try{
       bytes = Files.readAllBytes(Paths.get(this.filename));
-      println("loaded file " + this.filename + ": bytes:" + bytes.length);
+      println("FILE: " + this.filename + ": bytes:" + bytes.length);
     } catch(IOException e) {
       e.printStackTrace();
     }  
     return bytes;
+  }
+
+  String toString() {
+    return this.name + ": " + frame.toString();
   }
 }
 
@@ -70,12 +87,14 @@ public class IldaHeader {
     
     this.formatCode = headerBytes[7];
     this.name = new String(Arrays.copyOfRange(headerBytes, 8, 16));
+    name = name.trim();
     this.companyName = new String(Arrays.copyOfRange(headerBytes, 16, 24));
+    companyName = companyName.trim();
     this.numRecords  = IldaUtil.bytesToShort(Arrays.copyOfRange(headerBytes, 24, 26));
     this.frameNumber = IldaUtil.bytesToShort(Arrays.copyOfRange(headerBytes, 26, 28));
     this.totalFrames = IldaUtil.bytesToShort(Arrays.copyOfRange(headerBytes, 28, 30));
 
-    print("HEADER:\n" + this.toString());
+    //println(this.toString());
   }
 
   
@@ -124,10 +143,10 @@ public class IldaFrame {
   public IldaHeader header;
   public ArrayList<IldaPoint> points = new ArrayList();
   public int byteCount;
+  public int pointCount;
 
   public IldaFrame(int frameOffset, byte[] bytes) {
     parse(frameOffset, bytes);
-  
   }
 
   void parse(int frameOffset, byte[] bytes) {
@@ -147,7 +166,7 @@ public class IldaFrame {
       short x,y,z;
       int status, st_blank, st_last, colIdx;
       int[] rgb;
-      IldaPoint p;
+      IldaPoint p = new IldaPoint();
 
       switch(this.header.formatCode) {
          case IldaHeader.ILDA_3D_INDEXED:
@@ -183,9 +202,9 @@ public class IldaFrame {
            status = recBytes[4];
            st_last   = (status & (1 << 7)) >> 7;
            st_blank  = (status & (1 << 6)) >> 6;
-           int b = recBytes[5];
-           int g = recBytes[6];
-           int r = recBytes[7];
+           int b = recBytes[5] & 0xff;
+           int g = recBytes[6] & 0xff;
+           int r = recBytes[7] & 0xff;
            rgb = new int[3];
            rgb[0] = r;
            rgb[1] = g;
@@ -196,8 +215,15 @@ public class IldaFrame {
            break;
       }
     }
-    println("Read points: " + this.points.size());
   }
+
+  public String toString() {
+    return "frame " + (this.header.frameNumber+1) + "/" + this.header.totalFrames
+                    + ": " + this.header.getFormatString() + " "
+                    + this.header.numRecords + " points "
+                    + "[" + this.header.name + "|" + this.header.companyName + "]";
+  }
+
 }
 
 
@@ -207,11 +233,11 @@ public class IldaPoint {
   short x;
   short y;
   short z;
-  int[] rgb = {0,0,0};
+  int[] rgb = {255,255,255};
   int colorIdx;
   boolean blank;
   boolean last;
-  
+
   public IldaPoint(short x, short y, short z, int colorIdx, int[] rgb, boolean blank, boolean last) {
     this.x = x;
     this.y = y;
@@ -230,10 +256,12 @@ public class IldaPoint {
     this.last = last;
   }
   
+  public IldaPoint() {}
+
   public String toString() {
     return "[" + x + " " + y + " " + z + "] "
          + "[b: " + this.blank + ", l: " + this.last + " ] "
-         + "[c: " + this.colorIdx + "]"; 
+         + "[ci: " + this.colorIdx + ", rgb: " + IldaUtil.RGBToHexString(rgb) +"]";
   
   }
 }
