@@ -8,6 +8,7 @@ NetAddress network;
 IldaFile ildaFile;
 IldaFrame currentFrame;
 int currentFrameIdx = 0;
+int prevFrameIdx;
 
 String ildaPath;
 String ildaFilename = "ildatest.ild";
@@ -19,6 +20,14 @@ int currentIldaFileIdx = 0;
 
 int prevFileChangeTime = 0;
 int autoChangeInterval = 10000; // ms
+
+float[] oscBufferX;
+float[] oscBufferY;
+float[] oscBufferBl;
+float[] oscBufferR;
+float[] oscBufferG;
+float[] oscBufferB;
+
 
 void setup() {
   size(1200,1200);
@@ -37,8 +46,6 @@ void setup() {
       ildaFilenames.add(baseName);
     }
   }
-
-
 
   println("sketchpath: " + sketchPath());
   ildaFile  = new IldaFile(dataPath(ildaFilename), ildaFilename);
@@ -70,6 +77,11 @@ void draw() {
   if (ildaFile != null && ildaFile.frames != null && ildaFile.frameCount > 0) {
     currentFrame = (IldaFrame)ildaFile.frames.get(currentFrameIdx);
     drawIldaFrame(currentFrame);
+
+    if(prevFrameIdx != currentFrameIdx) {
+      oscSendFrame(currentFrame);
+    }
+    prevFrameIdx = currentFrameIdx;
     currentFrameIdx++;
     currentFrameIdx %= ildaFile.frameCount;
   }
@@ -128,16 +140,41 @@ int[] rgbIntensity(int[] rgb, float intensity) {
 }
 
 
+void oscSendFrame(IldaFrame frame) {
+  int numpoints = frame.points.size();
+  oscBufferX  = new float[numpoints];
+  oscBufferY  = new float[numpoints];
+  oscBufferBl = new float[numpoints];
+  oscBufferR  = new float[numpoints];
+  oscBufferG  = new float[numpoints];
+  oscBufferB  = new float[numpoints];
 
-/*
-void sendOsc() {
-  if(pointsX != null && pointsY != null) {
-    OscMessage pointsxMessage = new OscMessage("/pointsx");
-    OscMessage pointsyMessage = new OscMessage("/pointsy");
-    pointsxMessage.add(pointsX);
-    pointsyMessage.add(pointsY);
-    oscP5.send(pointsxMessage, network);
-    oscP5.send(pointsyMessage, network);
+  for (int i=0; i< numpoints; i++) {
+    IldaPoint p = frame.points.get(i);
+    oscBufferX[i]  =  p.x / (float)Short.MAX_VALUE;
+    oscBufferY[i]  =  p.y / (float)Short.MAX_VALUE;
+    oscBufferBl[i] = p.blank? 1.0 : 0.0;
+    oscBufferR[i]  = (float)p.rgb[0] / 255.0;
+    oscBufferG[i]  = (float)p.rgb[1] / 255.0;
+    oscBufferB[i]  = (float)p.rgb[2] / 255.0;
   }
+
+  OscMessage pointsxMessage = new OscMessage("/pointsx");
+  OscMessage pointsyMessage = new OscMessage("/pointsy");
+  OscMessage blankMessage   = new OscMessage("/blank");
+  OscMessage redMessage     = new OscMessage("/red");
+  OscMessage greenMessage   = new OscMessage("/green");
+  OscMessage blueMessage    = new OscMessage("/blue");
+  pointsxMessage.add(oscBufferX);
+  pointsyMessage.add(oscBufferY);
+  blankMessage.add(oscBufferBl);
+  redMessage.add(oscBufferR);
+  greenMessage.add(oscBufferG);
+  blueMessage.add(oscBufferB);
+  oscP5.send(pointsxMessage, network);
+  oscP5.send(pointsyMessage, network);
+  oscP5.send(blankMessage, network);
+  oscP5.send(redMessage, network);
+  oscP5.send(greenMessage, network);
+  oscP5.send(blueMessage, network);
 }
-*/
