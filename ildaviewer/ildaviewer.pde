@@ -13,7 +13,7 @@ int prevFrameIdx;
 
 String ildaPath;
 String ildaFilename;
-static final int POINTS_PER_SEC = 30000;
+static final int POINTS_PER_SEC = 12000;
 
 File[] dataFiles;
 ArrayList<String> ildaFilenames = new ArrayList();
