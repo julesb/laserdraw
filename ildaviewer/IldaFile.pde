@@ -17,6 +17,7 @@ public class IldaFile {
 
   public IldaFile(String filename, String name) {
     this.filename = filename;
+    this.name = name;
     this.bytes = loadFile();
     int frameOffset = 0;
     IldaFrame frame;
@@ -28,23 +29,25 @@ public class IldaFile {
       }
       else {
         frames.add(frame);
-        println(name + ": " + frame.toString());
+        //println(name + ": " + frame.toString());
         frameOffset += frame.byteCount;
       }
     } while (frame.header.numRecords > 0 && frameOffset < this.bytes.length);
 
     if (frame.header.numRecords != 0) {
       println(name + ": NO EOF HEADER");
+      frames.remove(frames.size()-1);
     }
 
     this.frameCount = frames.size();
+    println(this.toString());
   }
 
   byte[] loadFile() {
     byte[] bytes = {};
     try{
       bytes = Files.readAllBytes(Paths.get(this.filename));
-      println("FILE: " + this.filename + ": bytes:" + bytes.length);
+      //println("FILE: " + this.filename + ": bytes:" + bytes.length);
     } catch(IOException e) {
       e.printStackTrace();
     }  
@@ -52,7 +55,9 @@ public class IldaFile {
   }
 
   String toString() {
-    return this.name + ": " + frame.toString();
+    return this.name + ": frames:" + this.frameCount + ": "
+    + (this.frameCount > 0? frames.get(0).toString(): "") ;
+
   }
 }
 
@@ -80,11 +85,10 @@ public class IldaHeader {
     String id = new String(Arrays.copyOfRange(headerBytes, 0, 4));
     if (! id.equals("ILDA")) {
       println("ERROR: Invalid file identifier: '" + id + "'");
+      return;
     }
-    else {
-      this.identifier = id;
-    }
-    
+
+    this.identifier = id;
     this.formatCode = headerBytes[7];
     this.name = new String(Arrays.copyOfRange(headerBytes, 8, 16));
     name = name.trim();
@@ -215,6 +219,7 @@ public class IldaFrame {
            break;
       }
     }
+    this.pointCount = points.size();
   }
 
   public String toString() {
