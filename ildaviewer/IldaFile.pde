@@ -166,6 +166,11 @@ public class IldaFrame {
     
     
     for (int i=dataStartIdx; i < dataStartIdx+datalen; i += recsize) {
+      int endOff = i + recsize;
+      if (endOff >= bytes.length) {
+        println("out of range");
+        break;
+      }
       byte[] recBytes = Arrays.copyOfRange(bytes, i, i+recsize);
       short x,y,z;
       int status, st_blank, st_last, colIdx;
@@ -173,7 +178,7 @@ public class IldaFrame {
       IldaPoint p = new IldaPoint();
 
       switch(this.header.formatCode) {
-         case IldaHeader.ILDA_3D_INDEXED:
+         case IldaHeader.ILDA_3D_INDEXED: {
            x = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 0, 2));
            y = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 2, 4));
            z = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 4, 6));
@@ -186,20 +191,44 @@ public class IldaFrame {
            this.points.add(p);
            //println(p.toString());
            break;
-           
-         case IldaHeader.ILDA_2D_INDEXED:
-           println("NOT IMPLEMENTED: ILDA_2D_INDEXED");
+         }
+         case IldaHeader.ILDA_2D_INDEXED: {
+           x = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 0, 2));
+           y = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 2, 4));
+           z = 0; //IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 4, 6));
+           status = recBytes[4];
+           colIdx = recBytes[5];
+           st_last   = (status & (1 << 7)) >> 7;
+           st_blank  = (status & (1 << 6)) >> 6;
+           rgb = null; //IldaUtil.DEFAULT_PALETTE[colIdx];
+           p = new IldaPoint(x, y, z, colIdx, rgb, (st_blank == 1), (st_last == 1));
+           this.points.add(p);
            break;
-         
-         case IldaHeader.ILDA_COLOR_PALETTE:
+         }
+         case IldaHeader.ILDA_COLOR_PALETTE: {
            println("NOT IMPLEMENTED: ILDA_COLOR_PALETTE");
            break;
-         
-         case IldaHeader.ILDA_3D_RGB:
-           println("NOT IMPLEMENTED: ILDA_3D_RGB");
+         }
+         case IldaHeader.ILDA_3D_RGB: {
+           x = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 0, 2));
+           y = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 2, 4));
+           z = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 4, 6));
+           status = recBytes[6];
+           st_last   = (status & (1 << 7)) >> 7;
+           st_blank  = (status & (1 << 6)) >> 6;
+           int b = recBytes[7] & 0xff;
+           int g = recBytes[8] & 0xff;
+           int r = recBytes[9] & 0xff;
+           rgb = new int[3];
+           rgb[0] = r;
+           rgb[1] = g;
+           rgb[2] = b;
+           colIdx = -1;
+           p = new IldaPoint(x, y, z, colIdx, rgb, (st_blank == 1), (st_last == 1));
+           this.points.add(p);
            break;
-         
-         case IldaHeader.ILDA_2D_RGB:
+         }
+         case IldaHeader.ILDA_2D_RGB: {
            x = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 0, 2));
            y = IldaUtil.bytesToShort(Arrays.copyOfRange(recBytes, 2, 4));
            z = 0;
@@ -217,6 +246,7 @@ public class IldaFrame {
            p = new IldaPoint(x, y, z, colIdx, rgb, (st_blank == 1), (st_last == 1));
            this.points.add(p);
            break;
+         }
       }
     }
     this.pointCount = points.size();
