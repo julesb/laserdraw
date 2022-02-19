@@ -11,6 +11,7 @@ IldaFile ildaFile;
 IldaFrame currentFrame;
 int currentFrameIdx = 0;
 int prevFrameIdx;
+boolean frame0 = true;
 
 String ildaPath;
 String ildaFilename;
@@ -18,7 +19,7 @@ static final int POINTS_PER_SEC = 12000;
 
 File[] dataFiles;
 ArrayList<String> ildaFilenames = new ArrayList();
-int currentIldaFileIdx = 0;
+int currentFileIdx = 0;
 int prevFileChangeTime = 0;
 int fixedFrameRate = 30;
 
@@ -38,7 +39,7 @@ boolean constantPPS = true;
 boolean showInfo = true;
 boolean showBlankLines = true;
 boolean oscSendEnabled = false;
-
+boolean paused = false;
 
 void setup() {
   size(1200, 1200);
@@ -83,7 +84,6 @@ void setup() {
   prevFileChangeTime = millis();
   if (ildaFile != null && ildaFile.frameCount > 0) {
     currentFrame = ildaFile.frames.get(0);
-    oscSendFrame(currentFrame);
   }
 
   blendMode(ADD);
@@ -105,7 +105,6 @@ void draw() {
       loadNext();
     }
     prevFileChangeTime = t;
-    //currentFrameIdx = 0;
   }
 
   if (ildaFile != null && ildaFile.frames != null && ildaFile.frameCount > 0) {
@@ -113,21 +112,26 @@ void draw() {
 
     if (constantPPS) {
       float newfr = (float)POINTS_PER_SEC / currentFrame.pointCount;
-      if (newfr > 0) {
+      if (newfr > 0 && !frame0) {
         frameRate(newfr);
       }
     }
-    drawIldaFrame(currentFrame);
+    drawFrame(currentFrame);
 
     if (oscSendEnabled && prevFrameIdx != currentFrameIdx) {
       oscSendFrame(currentFrame);
     }
-    prevFrameIdx = currentFrameIdx;
-    currentFrameIdx++;
-    currentFrameIdx %= ildaFile.frameCount;
+    if (!paused) {
+      prevFrameIdx = currentFrameIdx;
+      currentFrameIdx++;
+      currentFrameIdx %= ildaFile.frameCount;
+    }
   }
   if (showInfo) {
     drawInfo(20, 40);
+  }
+  if(frame0) {
+    frame0 = false;
   }
 }
 
@@ -138,13 +142,16 @@ void keyPressed() {
   }
   if (key == CODED) {
     switch (keyCode) {
-    case LEFT:
-      loadPrev();
-      break;
-    case RIGHT:
-      loadNext();
-      break;
+      case LEFT:
+        loadPrev();
+        break;
+      case RIGHT:
+        loadNext();
+        break;
     }
+  }
+  if (paused) {
+    redraw();
   }
 }
 
@@ -171,9 +178,41 @@ void keyTyped() {
     case 'o':
       oscSendEnabled = !oscSendEnabled;
       break;
+    case ' ':
+      paused = !paused;
+      if (paused) {
+        noLoop();
+      }
+      else {
+        loop();
+      }
+      break;
+    case ',':
+      if (paused) {
+        prevFrame();
+      }
+      break;
+    case '.':
+      if (paused) {
+        nextFrame();
+      }
+      break;
+  }
+  if (paused) {
+    redraw();
   }
 }
 
+void nextFrame() {
+    prevFrameIdx = currentFrameIdx;
+    currentFrameIdx++;
+    currentFrameIdx %= ildaFile.frameCount;
+}
+void prevFrame() {
+    prevFrameIdx = currentFrameIdx;
+    currentFrameIdx--;
+    currentFrameIdx = (currentFrameIdx < 0)? ildaFile.frameCount-1: currentFrameIdx;
+}
 
 void load(int fileIdx) {
   String shortname = ildaFilenames.get(fileIdx);
@@ -182,40 +221,42 @@ void load(int fileIdx) {
   currentFrameIdx = 0;
 }
 void loadNext() {
-  currentIldaFileIdx++;
-  currentIldaFileIdx %= ildaFilenames.size();
-  load(currentIldaFileIdx);
+  currentFileIdx++;
+  currentFileIdx %= ildaFilenames.size();
+  load(currentFileIdx);
 }
 void loadPrev() {
-  currentIldaFileIdx--;
-  currentIldaFileIdx = currentIldaFileIdx < 0? ildaFilenames.size()-1: currentIldaFileIdx;
-  load(currentIldaFileIdx);
+  currentFileIdx--;
+  currentFileIdx = currentFileIdx < 0? ildaFilenames.size()-1: currentFileIdx;
+  load(currentFileIdx);
 }
 void loadRandom() {
-  currentIldaFileIdx = (int)(random(1.0)*ildaFilenames.size());
-  load(currentIldaFileIdx);
+  currentFileIdx = (int)(random(1.0)*ildaFilenames.size());
+  load(currentFileIdx);
 }
 
 
 void drawInfo(int x, int y) {
   int lineheight = 32;
   fill(128);
-  text("file: " +ildaFile.name, x, y + lineheight*1);
-  text("fps: " + String.format("%.1f", frameRate), x, y + lineheight*2);
-  text("pps: " + POINTS_PER_SEC / 1000 + "k", x, y + lineheight*3);
-  text("auto: " + autoChangeEnabled, x, y + lineheight*4);
+  text("file [" + currentFileIdx + "/"+ ildaFilenames.size() +"]: " +ildaFile.name, x, y + lineheight*1);
+  text(String.format("frame: %05d/%05d P:%d" ,
+       currentFrameIdx+1, ildaFile.frameCount, currentFrame.pointCount), x, y + lineheight*2);
+  text("fps: " + String.format("%.1f", frameRate), x, y + lineheight*3);
+  text("pps: " + POINTS_PER_SEC / 1000 + "k", x, y + lineheight*4);
+  text("auto: " + autoChangeEnabled, x, y + lineheight*5);
+
   if (oscSendEnabled) {
     fill(192, 0, 0);
   } else {
     fill(128);
   }
-  text("OSC: " + oscSendEnabled, x, y + lineheight*5);
+  text("OSC: " + oscSendEnabled, x, y + lineheight*6);
 
   drawProgress(0, 0, width, 2);
 }
 
-
-void drawIldaFrame(IldaFrame frame) {
+void drawFrame(IldaFrame frame) {
   if (frame == null) {
     println("ERROR: frame is null");
     return;
@@ -224,12 +265,20 @@ void drawIldaFrame(IldaFrame frame) {
     println("ERROR: frame.points is null");
     return;
   }
+
+  if (frame.points.size() == 0) {
+    return;
+  }
+
   pushMatrix();
   translate(width/2, height/2);
 
-  for (int pidx = 0; pidx < frame.points.size()-1; pidx++) {
-    IldaPoint p1 =frame.points.get(pidx);
-    IldaPoint p2 =frame.points.get(pidx+1);
+  int npoints = frame.points.size();
+  for (int i = 0; i < npoints; i++) {
+    int pidx1 = i;
+    int pidx2 = (i+1) % npoints;
+    IldaPoint p1 =frame.points.get(pidx1);
+    IldaPoint p2 =frame.points.get(pidx2);
     float x1 = (float)p1.x / Short.MAX_VALUE * (width/2);
     float y1 = (float)p1.y / Short.MAX_VALUE * (height/2) * -1;
     float x2 = (float)p2.x / Short.MAX_VALUE * (width/2);
@@ -255,6 +304,7 @@ void drawIldaFrame(IldaFrame frame) {
   popMatrix();
 }
 
+
 void drawProgress(int x, int y, int w, int h) {
   int numFrames = ildaFile==null? 0 : ildaFile.frameCount;
   if (numFrames == 0) {
@@ -262,11 +312,8 @@ void drawProgress(int x, int y, int w, int h) {
   }
   strokeWeight(h);
   stroke(64);
-  //line(x, y, x+w, y);
-
   float t = ((float) (1+currentFrameIdx)) / numFrames;
   float x2 = x + t * w;
-
   stroke(0, 255, 0);
   line(x, y, x2, y);
 }
